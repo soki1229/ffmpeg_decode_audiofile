@@ -5,26 +5,33 @@ BaseModule* BaseModule::m_pInstance = 0;
 BaseModule::BaseModule(){}
 BaseModule::~BaseModule(){}
 
-int BaseModule::decode()
+int BaseModule::decode(CODEC_INFO* codec_info, string input, string &output)
 {
+    output = input;
+    if (!output.empty()){
+        output.resize(output.length()-string(FILE_EXTENSION_FMT_MP3).length());
+        output.append(FILE_EXTENSION_FMT_PCM);
+    }
+    printf("decode - path: %s, pcmPath: %s\n", input.c_str(), output.c_str());
+
     #define AUDIO_INBUF_SIZE        10240
     #define AUDIO_REFILL_THRESH     4096
 
-    const char* filename    = "sample.mp3";
-    const char* outfilename = "out.pcm";
+    const char* filename    = input.c_str();
+    const char* outfilename = output.c_str();
 
     const AVCodec *codec;
     AVCodecContext *codec_ctx= NULL;
     AVCodecParserContext *parser = NULL;
-    int len = 0;
-    int ret = 0;
-    FILE *infile = NULL;
-    FILE *outfile = NULL;
-    uint8_t inbuf[AUDIO_INBUF_SIZE + AV_INPUT_BUFFER_PADDING_SIZE];
-    uint8_t *data = NULL;
-    size_t   data_size = 0;
-    AVPacket *pkt = NULL;
-    AVFrame *de_frame = NULL;
+    int         len         = 0;
+    int         ret         = 0;
+    FILE*       infile      = NULL;
+    FILE*       outfile     = NULL;
+    uint8_t     inbuf[AUDIO_INBUF_SIZE + AV_INPUT_BUFFER_PADDING_SIZE];
+    uint8_t*    data        = NULL;
+    size_t      data_size   = 0;
+    AVPacket*   pkt         = NULL;
+    AVFrame*    de_frame    = NULL;
 
     pkt = av_packet_alloc();
     enum AVCodecID audio_codec_id = AV_CODEC_ID_MP3;
@@ -112,6 +119,16 @@ int BaseModule::decode()
     printf("decode_main - S_rate [%d]\n", codec_ctx->sample_rate);
     printf("decode_main - format [%d]\n", codec_ctx->sample_fmt);
 
+    codec_info->channels        = codec_ctx->channels;
+    codec_info->channel_layout  = codec_ctx->channel_layout;
+    codec_info->sample_rate     = codec_ctx->sample_rate;
+    codec_info->sample_fmt      = codec_ctx->sample_fmt;
+
+    printf("decode_main - codec_info.chnl_c [%d]\n", codec_info->channels);
+    printf("decode_main - codec_info.layout [%d]\n", codec_info->channel_layout);
+    printf("decode_main - codec_info.S_rate [%d]\n", codec_info->sample_rate);
+    printf("decode_main - codec_info.format [%d]\n", codec_info->sample_fmt);
+
     pkt->data = NULL;
     pkt->size = 0;
     write_audio(codec_ctx, pkt, de_frame, outfile);
@@ -170,4 +187,112 @@ void BaseModule::write_audio(AVCodecContext* dec_ctx, AVPacket* pkt, AVFrame* fr
     while (!send_ret);
 
     printf("write_audio - frame->data[0] = %s\n", frame->data[0]);
+}
+
+int BaseModule::convertPcmToWav(CODEC_INFO* codec_info, string pcmPath, string &wavPath)
+{
+    int channels        = codec_info->channels;
+    int channel_layout  = codec_info->channel_layout;
+    int sample_rate     = codec_info->sample_rate;
+    int sample_fmt      = codec_info->sample_fmt;
+    int wav_fmt;
+
+switch (AVSampleFormat(sample_fmt)) {
+    case AV_SAMPLE_FMT_U8   :
+    case AV_SAMPLE_FMT_U8P  :
+        wav_fmt = 8;
+        break;
+    case AV_SAMPLE_FMT_S16  :
+    case AV_SAMPLE_FMT_S16P :
+        wav_fmt = 16;
+        break;
+    case AV_SAMPLE_FMT_S32  :
+    case AV_SAMPLE_FMT_S32P :
+    case AV_SAMPLE_FMT_FLT  :
+    case AV_SAMPLE_FMT_FLTP :
+    case AV_SAMPLE_FMT_DBL  :
+    case AV_SAMPLE_FMT_DBLP :
+        wav_fmt = 32;
+        break;
+    case AV_SAMPLE_FMT_S64  :
+    case AV_SAMPLE_FMT_S64P :
+        wav_fmt = 64;
+        break;
+    case AV_SAMPLE_FMT_NONE :
+    case AV_SAMPLE_FMT_NB   :
+    default:
+        break;
+    };
+
+    wavPath = pcmPath;
+    if (!wavPath.empty()){
+        wavPath.resize(wavPath.length()-string(FILE_EXTENSION_FMT_PCM).length());
+        wavPath.append(FILE_EXTENSION_FMT_WAV);
+    }
+    printf("convertPcmToWav - pcmPath: %s, wavPath: %s\n", pcmPath.c_str(), wavPath.c_str());
+
+    if(channels==2 || sample_rate==0){
+        channels    = 2;
+        sample_rate  = 44100;
+    }
+
+    WAVE_HEADER pcmHEADER;
+    WAVE_FMT    pcmFMT;
+    WAVE_DATA   pcmDATA;
+
+    short int m_pcmData;
+    FILE *fp, *fpout;
+
+    fp = fopen(pcmPath.c_str(), "rb+");
+    if(fp==NULL){
+        printf("convertPcmToWav - Open pcm file error\n");
+        return -1;
+    }
+    fpout = fopen(wavPath.c_str(), "wb+");
+    if(fpout==NULL){
+        printf("convertPcmToWav - Create wav file error\n");
+        return -1;
+    }
+
+    /* WAVE_HEADER */
+    memcpy(pcmHEADER.fccID,     WAV_FMT_CONTEXT_RIFF,   string(WAV_FMT_CONTEXT_RIFF).length());
+    memcpy(pcmHEADER.fccType,   WAV_FMT_CONTEXT_WAVE,   string(WAV_FMT_CONTEXT_WAVE).length());
+    fseek(fpout, sizeof(WAVE_HEADER), 1);   
+    
+    /* WAVE_FMT */
+    memcpy(pcmFMT.fccID,        WAV_FMT_CONTEXT_FMT,    string(WAV_FMT_CONTEXT_FMT).length());
+    pcmFMT.dwSize           = 16;
+    pcmFMT.wFormatTag       = channel_layout;
+    pcmFMT.wChannels        = channels;
+    pcmFMT.dwSamplesPerSec  = sample_rate;   
+    pcmFMT.uiBitsPerSample  = wav_fmt;           
+    pcmFMT.dwAvgBytesPerSec = pcmFMT.dwSamplesPerSec*pcmFMT.wChannels*pcmFMT.uiBitsPerSample/8;
+    pcmFMT.wBlockAlign      = pcmFMT.wChannels*pcmFMT.uiBitsPerSample/8;
+
+    fwrite(&pcmFMT, sizeof(WAVE_FMT), 1, fpout);
+
+    /* WAVE_DATA */
+    memcpy(pcmDATA.fccID,       WAV_FMT_CONTEXT_DATA,   string(WAV_FMT_CONTEXT_DATA).length());
+    pcmDATA.dwSize = 0;
+    fseek(fpout, sizeof(WAVE_DATA), 1);
+
+    fread(&m_pcmData, sizeof(short int), 1, fp);
+    while(!feof(fp)){
+        pcmDATA.dwSize += sizeof(short int);
+        fwrite(&m_pcmData, sizeof(short int), 1, fpout);
+        fread(&m_pcmData, sizeof(short int), 1, fp);
+    }
+    pcmHEADER.dwSize = 36 + pcmDATA.dwSize;
+
+    rewind(fpout);
+    fwrite(&pcmHEADER, sizeof(WAVE_HEADER), 1, fpout);
+    fseek(fpout, sizeof(WAVE_FMT), SEEK_CUR);
+    fwrite(&pcmDATA, sizeof(WAVE_DATA), 1, fpout);
+
+    fclose(fp);
+    fclose(fpout);
+
+    //remove(pcmPath.c_str());
+    
+    return 0;
 }
