@@ -12,7 +12,7 @@ int main(int, char**) {
     
     startTime   = clock();
 
-    input = "sample.mp3";
+    input = "Symphony No.6 (1st movement).mp3";
     pBaseModule->decode(&codec_info, input, output);
 
     input = output;

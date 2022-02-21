@@ -5,6 +5,7 @@ extern "C" {
     #include "libswscale/swscale.h"
     #include "libavformat/avformat.h"
     #include "libavcodec/avcodec.h"
+    #include "libavutil/channel_layout.h"
 }
 
 using namespace std;
@@ -32,7 +33,7 @@ typedef struct WAVE_HEADER{
 typedef struct WAVE_FMT{
     char            fccID[4];           //The content is "FMT"
     unsigned int    dwSize;             //The content of the content is WAVE_FMT, 16
-    short int       wFormatTag;         //If it is PCM, the value is 1
+    short int       wFormatTag;         //PCM=1, MP3=3
     short int       wChannels;          //Number of channels, single channel = 1, dual channel = 2
     unsigned int    dwSamplesPerSec;    //Sampling frequency
     unsigned int    dwAvgBytesPerSec;   /* ==dwSamplesPerSec*wChannels*uiBitsPerSample/8 */
@@ -47,10 +48,11 @@ typedef struct WAVE_DATA{
 
 
 typedef struct CODEC_INFO{
-    int             channels;
-    int             channel_layout;
-    int             sample_rate;
-    int             sample_fmt;
+    AVCodecID       codecID         = AV_CODEC_ID_NONE;
+    int             channels        = 1;
+    int             channel_layout  = AV_CH_LAYOUT_MONO;
+    int             sample_rate     = 22050;
+    AVSampleFormat  sample_fmt      = AV_SAMPLE_FMT_S16;
 }CODEC_INFO;
 
 /************************************************************************************/

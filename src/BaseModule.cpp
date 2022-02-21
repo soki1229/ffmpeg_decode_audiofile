@@ -114,20 +114,18 @@ int BaseModule::decode(CODEC_INFO* codec_info, string input, string &output)
         }
     }
 
+    audio_codec_id = av_get_pcm_codec(codec_ctx->sample_fmt, 0);
+    printf("decode_main - codec_id [%d]\n", codec->id);
     printf("decode_main - chnl_c [%d]\n", codec_ctx->channels);
     printf("decode_main - layout [%d]\n", codec_ctx->channel_layout);
     printf("decode_main - S_rate [%d]\n", codec_ctx->sample_rate);
     printf("decode_main - format [%d]\n", codec_ctx->sample_fmt);
 
+    codec_info->codecID         = codec->id;
     codec_info->channels        = codec_ctx->channels;
     codec_info->channel_layout  = codec_ctx->channel_layout;
     codec_info->sample_rate     = codec_ctx->sample_rate;
     codec_info->sample_fmt      = codec_ctx->sample_fmt;
-
-    printf("decode_main - codec_info.chnl_c [%d]\n", codec_info->channels);
-    printf("decode_main - codec_info.layout [%d]\n", codec_info->channel_layout);
-    printf("decode_main - codec_info.S_rate [%d]\n", codec_info->sample_rate);
-    printf("decode_main - codec_info.format [%d]\n", codec_info->sample_fmt);
 
     pkt->data = NULL;
     pkt->size = 0;
@@ -191,37 +189,39 @@ void BaseModule::write_audio(AVCodecContext* dec_ctx, AVPacket* pkt, AVFrame* fr
 
 int BaseModule::convertPcmToWav(CODEC_INFO* codec_info, string pcmPath, string &wavPath)
 {
-    int channels        = codec_info->channels;
-    int channel_layout  = codec_info->channel_layout;
-    int sample_rate     = codec_info->sample_rate;
-    int sample_fmt      = codec_info->sample_fmt;
-    int wav_fmt;
+    AVCodecID       codecID         = codec_info->codecID;
+    int             channels        = codec_info->channels;
+    int             channel_layout  = codec_info->channel_layout;
+    unsigned int    sample_rate     = codec_info->sample_rate;
+    int             sample_fmt      = codec_info->sample_fmt;
+    
+    int             wav_fmt         = 16;
 
-switch (AVSampleFormat(sample_fmt)) {
-    case AV_SAMPLE_FMT_U8   :
-    case AV_SAMPLE_FMT_U8P  :
-        wav_fmt = 8;
-        break;
-    case AV_SAMPLE_FMT_S16  :
-    case AV_SAMPLE_FMT_S16P :
-        wav_fmt = 16;
-        break;
-    case AV_SAMPLE_FMT_S32  :
-    case AV_SAMPLE_FMT_S32P :
-    case AV_SAMPLE_FMT_FLT  :
-    case AV_SAMPLE_FMT_FLTP :
-    case AV_SAMPLE_FMT_DBL  :
-    case AV_SAMPLE_FMT_DBLP :
-        wav_fmt = 32;
-        break;
-    case AV_SAMPLE_FMT_S64  :
-    case AV_SAMPLE_FMT_S64P :
-        wav_fmt = 64;
-        break;
-    case AV_SAMPLE_FMT_NONE :
-    case AV_SAMPLE_FMT_NB   :
-    default:
-        break;
+    switch (AVSampleFormat(sample_fmt)) {
+        case AV_SAMPLE_FMT_U8   :
+        case AV_SAMPLE_FMT_U8P  :
+            wav_fmt = 8;
+            break;
+        case AV_SAMPLE_FMT_S16  :
+        case AV_SAMPLE_FMT_S16P :
+            wav_fmt = 16;
+            break;
+        case AV_SAMPLE_FMT_S32  :
+        case AV_SAMPLE_FMT_S32P :
+        case AV_SAMPLE_FMT_FLT  :
+        case AV_SAMPLE_FMT_FLTP :
+        case AV_SAMPLE_FMT_DBL  :
+        case AV_SAMPLE_FMT_DBLP :
+            wav_fmt = 32;
+            break;
+        case AV_SAMPLE_FMT_S64  :
+        case AV_SAMPLE_FMT_S64P :
+            wav_fmt = 64;
+            break;
+        case AV_SAMPLE_FMT_NONE :
+        case AV_SAMPLE_FMT_NB   :
+        default:
+            break;
     };
 
     wavPath = pcmPath;
@@ -233,7 +233,7 @@ switch (AVSampleFormat(sample_fmt)) {
 
     if(channels==2 || sample_rate==0){
         channels    = 2;
-        sample_rate  = 44100;
+        sample_rate = 44100;
     }
 
     WAVE_HEADER pcmHEADER;
@@ -262,12 +262,17 @@ switch (AVSampleFormat(sample_fmt)) {
     /* WAVE_FMT */
     memcpy(pcmFMT.fccID,        WAV_FMT_CONTEXT_FMT,    string(WAV_FMT_CONTEXT_FMT).length());
     pcmFMT.dwSize           = 16;
-    pcmFMT.wFormatTag       = channel_layout;
+    pcmFMT.wFormatTag       = codecID==AV_CODEC_ID_MP3 ? 0x0003 : 0x0001;
     pcmFMT.wChannels        = channels;
     pcmFMT.dwSamplesPerSec  = sample_rate;   
     pcmFMT.uiBitsPerSample  = wav_fmt;           
     pcmFMT.dwAvgBytesPerSec = pcmFMT.dwSamplesPerSec*pcmFMT.wChannels*pcmFMT.uiBitsPerSample/8;
     pcmFMT.wBlockAlign      = pcmFMT.wChannels*pcmFMT.uiBitsPerSample/8;
+
+    printf("convertPcmToWav - convertPcmToWav - formatTag: %d\n", pcmFMT.wFormatTag);
+    printf("convertPcmToWav - convertPcmToWav - channels: %d\n", pcmFMT.wChannels);
+    printf("convertPcmToWav - convertPcmToWav - sampleRate: %d\n", pcmFMT.dwSamplesPerSec);
+    printf("convertPcmToWav - convertPcmToWav - Samplebits: %d\n", pcmFMT.uiBitsPerSample);
 
     fwrite(&pcmFMT, sizeof(WAVE_FMT), 1, fpout);
 
