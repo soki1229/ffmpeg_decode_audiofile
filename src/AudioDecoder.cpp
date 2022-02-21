@@ -1,11 +1,11 @@
-#include "BaseModule.h"
+#include "AudioDecoder.h"
 
-BaseModule* BaseModule::m_pInstance = 0;
+AudioDecoder* AudioDecoder::m_pInstance = 0;
 
-BaseModule::BaseModule(){}
-BaseModule::~BaseModule(){}
+AudioDecoder::AudioDecoder(){}
+AudioDecoder::~AudioDecoder(){}
 
-int BaseModule::decode(CODEC_INFO* codec_info, string input, string &output)
+int AudioDecoder::decode(CODEC_INFO* codec_info, string input, string &output)
 {
     output = input;
     if (!output.empty()){
@@ -84,8 +84,6 @@ int BaseModule::decode(CODEC_INFO* codec_info, string input, string &output)
 
     printf("decode_main - data_size [%d]\n", data_size);
 
-    printf("decode_main - de_frame->data[0] = %s\n", de_frame->data[0]);
-
     while (data_size > 0)
     {
         ret = av_parser_parse2(parser, codec_ctx, &pkt->data, &pkt->size, data, data_size, AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
@@ -115,11 +113,11 @@ int BaseModule::decode(CODEC_INFO* codec_info, string input, string &output)
     }
 
     audio_codec_id = av_get_pcm_codec(codec_ctx->sample_fmt, 0);
-    printf("decode_main - codec_id [%d]\n", codec->id);
-    printf("decode_main - chnl_c [%d]\n", codec_ctx->channels);
-    printf("decode_main - layout [%d]\n", codec_ctx->channel_layout);
-    printf("decode_main - S_rate [%d]\n", codec_ctx->sample_rate);
-    printf("decode_main - format [%d]\n", codec_ctx->sample_fmt);
+    printf("decode_main - codec_id  [%d]\n",    codec->id);
+    printf("decode_main - chnl_c    [%d]\n",    codec_ctx->channels);
+    printf("decode_main - layout    [%d]\n",    codec_ctx->channel_layout);
+    printf("decode_main - S_rate    [%d]\n",    codec_ctx->sample_rate);
+    printf("decode_main - format    [%d]\n",    codec_ctx->sample_fmt);
 
     codec_info->codecID         = codec->id;
     codec_info->channels        = codec_ctx->channels;
@@ -139,11 +137,10 @@ int BaseModule::decode(CODEC_INFO* codec_info, string input, string &output)
     av_frame_free(&de_frame);
     av_packet_free(&pkt);
 
-    printf("decode_main - end\n");
     return 0;
 }
 
-void BaseModule::write_audio(AVCodecContext* dec_ctx, AVPacket* pkt, AVFrame* frame, FILE *outfile)
+void AudioDecoder::write_audio(AVCodecContext* dec_ctx, AVPacket* pkt, AVFrame* frame, FILE *outfile)
 {
     int i, ch;
     int ret, sample_size;
@@ -187,7 +184,7 @@ void BaseModule::write_audio(AVCodecContext* dec_ctx, AVPacket* pkt, AVFrame* fr
     printf("write_audio - frame->data[0] = %s\n", frame->data[0]);
 }
 
-int BaseModule::convertPcmToWav(CODEC_INFO* codec_info, string pcmPath, string &wavPath)
+int AudioDecoder::convertPcmToWav(CODEC_INFO* codec_info, string pcmPath, string &wavPath)
 {
     AVCodecID       codecID         = codec_info->codecID;
     int             channels        = codec_info->channels;
@@ -269,10 +266,10 @@ int BaseModule::convertPcmToWav(CODEC_INFO* codec_info, string pcmPath, string &
     pcmFMT.dwAvgBytesPerSec = pcmFMT.dwSamplesPerSec*pcmFMT.wChannels*pcmFMT.uiBitsPerSample/8;
     pcmFMT.wBlockAlign      = pcmFMT.wChannels*pcmFMT.uiBitsPerSample/8;
 
-    printf("convertPcmToWav - convertPcmToWav - formatTag: %d\n", pcmFMT.wFormatTag);
-    printf("convertPcmToWav - convertPcmToWav - channels: %d\n", pcmFMT.wChannels);
-    printf("convertPcmToWav - convertPcmToWav - sampleRate: %d\n", pcmFMT.dwSamplesPerSec);
-    printf("convertPcmToWav - convertPcmToWav - Samplebits: %d\n", pcmFMT.uiBitsPerSample);
+    printf("convertPcmToWav - convertPcmToWav - formatTag: %d\n",   pcmFMT.wFormatTag);
+    printf("convertPcmToWav - convertPcmToWav - channels: %d\n",    pcmFMT.wChannels);
+    printf("convertPcmToWav - convertPcmToWav - sampleRate: %d\n",  pcmFMT.dwSamplesPerSec);
+    printf("convertPcmToWav - convertPcmToWav - Samplebits: %d\n",  pcmFMT.uiBitsPerSample);
 
     fwrite(&pcmFMT, sizeof(WAVE_FMT), 1, fpout);
 

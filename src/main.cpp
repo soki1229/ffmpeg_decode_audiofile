@@ -1,28 +1,39 @@
 #include <iostream>
+#include <fstream>
 
-#include "BaseModule.h"
+#include "AudioDecoder.h"
 
 int main(int, char**) {
-    BaseModule* pBaseModule = BaseModule::getInstance();
+    AudioDecoder* pAudioDecoder = AudioDecoder::getInstance();
     
     string              input, output;
     string              wavPath;
 	clock_t             startTime, endTime, elapsed;
     struct CODEC_INFO   codec_info;
     
+    cout << "audio(mp3) file path : ";
+    cin >> input;
+    
+    ifstream fIn;
+    fIn.open(input);
+    if(!fIn){
+        cout << "ERROR: File [" << input << "] cannot be found." << endl;
+        return -1;
+    }
+    cout << "Start converting [" << input << "]" << endl;
+
     startTime   = clock();
 
-    input = "Symphony No.6 (1st movement).mp3";
-    pBaseModule->decode(&codec_info, input, output);
+    pAudioDecoder->decode(&codec_info, input, output);
 
     input = output;
-    pBaseModule->convertPcmToWav(&codec_info, input, wavPath);
-    std::cout << "mp3 file converted to " << wavPath <<endl;
+    pAudioDecoder->convertPcmToWav(&codec_info, input, wavPath);
+    cout << "mp3 file converted to " << wavPath <<endl;
 
     endTime     = clock();
 
 	elapsed     = endTime - startTime;
-    std::cout << "audio conversion took : " << double(elapsed) << "ms" <<endl;
+    cout << "audio conversion took : " << double(elapsed) << "ms" <<endl;
 
-
+    return 0;
 }

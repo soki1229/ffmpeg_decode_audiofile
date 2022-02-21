@@ -61,12 +61,12 @@ typedef struct CODEC_INFO{
 /**                                                                                **/
 /************************************************************************************/
 
-class BaseModule
+class AudioDecoder
 {
 public :
-    static BaseModule* getInstance() {
+    static AudioDecoder* getInstance() {
 		if(!m_pInstance) {
-            m_pInstance = new BaseModule;
+            m_pInstance = new AudioDecoder;
 		}
 		return m_pInstance;
 	}
@@ -85,8 +85,8 @@ public :
     int convertPcmToWav(CODEC_INFO* codec_info, string pcmPath, string &wavPath);
 
 private:
-    BaseModule();
-    ~BaseModule();
+    AudioDecoder();
+    ~AudioDecoder();
 
-    static BaseModule* m_pInstance;
+    static AudioDecoder* m_pInstance;
 };

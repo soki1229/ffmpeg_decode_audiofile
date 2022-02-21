@@ -27,11 +27,11 @@ link_libraries(
 
 SET(SRC
     src/main.cpp
-    src/BaseModule.cpp
+    src/AudioDecoder.cpp
 )
 
 SET(HDR
-    hdr/BaseModule.h
+    hdr/AudioDecoder.h
 )
 
 add_executable(audiofile_decode ${SRC} ${HDR})
