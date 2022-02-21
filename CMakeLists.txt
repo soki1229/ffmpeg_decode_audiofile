@@ -9,7 +9,7 @@ set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
 include(CPack)
 
-SET(FFMPEG_API_PATH API/ffmpeg-5.0)
+SET(FFMPEG_API_PATH C:/dev/ffmpeg)
 
 include_directories(
     hdr
