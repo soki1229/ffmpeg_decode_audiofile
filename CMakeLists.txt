@@ -12,10 +12,17 @@ include(CPack)
 SET(FFMPEG_API_PATH API/ffmpeg-5.0)
 
 include_directories(
+    hdr
     ${FFMPEG_API_PATH}/include
 )
 link_directories(
     ${FFMPEG_API_PATH}/lib
+)
+
+link_libraries(
+    avcodec
+    avutil
+    #avformat
 )
 
 SET(SRC
@@ -23,4 +30,8 @@ SET(SRC
     src/BaseModule.cpp
 )
 
-add_executable(audiofile_decode ${SRC})
+SET(HDR
+    hdr/BaseModule.h
+)
+
+add_executable(audiofile_decode ${SRC} ${HDR})
