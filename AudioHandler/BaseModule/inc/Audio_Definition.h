@@ -1,3 +1,6 @@
+#ifndef AUDIO_DEFINITION_H
+#define AUDIO_DEFINITION_H
+
 #include <ctime>
 #include <string>
 
@@ -5,6 +8,8 @@ extern "C" {
     #include "libswscale/swscale.h"
     #include "libavformat/avformat.h"
     #include "libavcodec/avcodec.h"
+    #include "libavutil/opt.h"
+    #include "libswresample/swresample.h"
     #include "libavutil/channel_layout.h"
 }
 
@@ -48,45 +53,12 @@ typedef struct WAVE_DATA{
 
 
 typedef struct CODEC_INFO{
-    AVCodecID       codecID         = AV_CODEC_ID_NONE;
-    int             channels        = 1;
-    int             channel_layout  = AV_CH_LAYOUT_MONO;
-    int             sample_rate     = 22050;
-    AVSampleFormat  sample_fmt      = AV_SAMPLE_FMT_S16;
+    AVCodecID       codecID;
+    int             channel_layout;
+    int             channels;
+    int             sample_rate;
+    AVSampleFormat  sample_fmt;
 }CODEC_INFO;
 
-/************************************************************************************/
-/**                                                                                **/
-/**                                CLASS DEFINITION                                **/
-/**                                                                                **/
-/************************************************************************************/
 
-class AudioDecoder
-{
-public :
-    static AudioDecoder* getInstance() {
-		if(!m_pInstance) {
-            m_pInstance = new AudioDecoder;
-		}
-		return m_pInstance;
-	}
-
-	static void destory() {
-		if (m_pInstance) {
-			delete m_pInstance;
-			m_pInstance = NULL;
-		}
-	}
-
-    int decode(CODEC_INFO* codec_info, string input, string &output);
-
-    void write_audio(AVCodecContext* dec_ctx, AVPacket* pkt, AVFrame* frame, FILE *outfile);
-
-    int convertPcmToWav(CODEC_INFO* codec_info, string pcmPath, string &wavPath);
-
-private:
-    AudioDecoder();
-    ~AudioDecoder();
-
-    static AudioDecoder* m_pInstance;
-};
+#endif // AUDIO_DEFINITION_H
