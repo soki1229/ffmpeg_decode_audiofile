@@ -32,7 +32,7 @@ public :
 
     int convertPcmToWav(CODEC_INFO* codec_info, string pcmPath, string &wavPath);
 
-    int decode_audio_file(const char* path, const int sample_rate, short** data, int* size);
+    int decode_audio_file(const char* path, const int sample_rate, uint16_t** data, int* size);
 
 private:
     AudioDecoder();

@@ -24,7 +24,7 @@ int main(int, char**) {
 
     startTime   = clock();
 
-    short* data;
+    uint16_t* data;
     int     size;
 
     pAudioDecoder->decode_audio_file(input.c_str(), 22050, &data, &size);
@@ -36,7 +36,7 @@ int main(int, char**) {
 
     // display result and exit cleanly
     printf("sum is %f\n", sum);
-    printf("size is %d\n", size);
+    printf("size is %d\n", size*2);
 
     FILE*       outfile     = NULL;
     outfile = fopen("/home/wskim/shared/after_resample.pcm", "wb");
@@ -51,7 +51,15 @@ int main(int, char**) {
     fclose(outfile);
 
     free(data);
+    input = "/home/wskim/shared/after_resample.pcm";
 
+    codec_info.codecID = AV_CODEC_ID_MP3;
+    codec_info.channel_layout = AV_CH_LAYOUT_MONO;
+    codec_info.channels = 1;
+    codec_info.sample_rate = 22050;
+    codec_info.sample_fmt = AV_SAMPLE_FMT_S16;
+
+    pAudioDecoder->convertPcmToWav(&codec_info, input, output);
 
 //    pAudioDecoder->decode(&codec_info, input, output);
 

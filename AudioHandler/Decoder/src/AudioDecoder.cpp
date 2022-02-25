@@ -116,19 +116,6 @@ int AudioDecoder::decode(CODEC_INFO* codec_info, string input, string &output)
     codec_info->sample_rate     = codec_ctx->sample_rate;
     codec_info->sample_fmt      = codec_ctx->sample_fmt;
 
-//    AudioResampler* pAudioResampler = AudioResampler::getInstance();
-
-//    short* inputBuff = (short*)pkt->data;
-//    int wavLen = 1152;
-//    short* outputBuff;
-//    int wavLen16k;
-
-//    ret = pAudioResampler->resample(codec_info, inputBuff, wavLen, outputBuff, wavLen16k);
-//    if (ret < 0){
-//        printf("ERROR\n");
-//        return 0;
-//    }
-
     pkt->data = NULL;
     pkt->size = 0;
     write_audio(codec_ctx, pkt, de_frame, outfile);
@@ -196,7 +183,7 @@ int AudioDecoder::convertPcmToWav(CODEC_INFO* codec_info, string pcmPath, string
     int             channel_layout  = codec_info->channel_layout;
     unsigned int    sample_rate     = codec_info->sample_rate;
     int             sample_fmt      = codec_info->sample_fmt;
-    
+
     int             wav_fmt         = 16;
 
     printf("convertPcmToWav - av_get_bytes_per_sample: %d byte\n", av_get_bytes_per_sample(AVSampleFormat(sample_fmt)));
@@ -262,11 +249,11 @@ int AudioDecoder::convertPcmToWav(CODEC_INFO* codec_info, string pcmPath, string
     memcpy(pcmHEADER.fccID,     WAV_FMT_CONTEXT_RIFF,   string(WAV_FMT_CONTEXT_RIFF).length());
     memcpy(pcmHEADER.fccType,   WAV_FMT_CONTEXT_WAVE,   string(WAV_FMT_CONTEXT_WAVE).length());
     fseek(fpout, sizeof(WAVE_HEADER), 1);
-    
+
     /* WAVE_FMT */
     memcpy(pcmFMT.fccID,        WAV_FMT_CONTEXT_FMT,    string(WAV_FMT_CONTEXT_FMT).length());
     pcmFMT.dwSize           = 16;
-    pcmFMT.wFormatTag       = codecID==AV_CODEC_ID_MP3 ? 0x0003 : 0x0001;
+    pcmFMT.wFormatTag       = 1;//codecID==AV_CODEC_ID_MP3 ? 0x0003 : 0x0001;
     pcmFMT.wChannels        = channels;
     pcmFMT.dwSamplesPerSec  = sample_rate;
     pcmFMT.uiBitsPerSample  = wav_fmt;
@@ -309,11 +296,11 @@ int AudioDecoder::convertPcmToWav(CODEC_INFO* codec_info, string pcmPath, string
     fclose(fpout);
 
     //remove(pcmPath.c_str());
-    
+
     return 0;
 }
 
-int AudioDecoder::decode_audio_file(const char* path, const int sample_rate, short** data, int* size) {
+int AudioDecoder::decode_audio_file(const char* path, const int sample_rate, uint16_t** data, int* size) {
     // initialize all muxers, demuxers and protocols for libavformat
     // (does nothing if called twice during the course of one program execution)
     av_register_all();
@@ -350,6 +337,11 @@ int AudioDecoder::decode_audio_file(const char* path, const int sample_rate, sho
         return -1;
     }
 
+    printf("decode_audio_file - chnl_c [%d]\n", codec->channels);
+    printf("decode_audio_file - layout [%d]\n", codec->channel_layout);
+    printf("decode_audio_file - S_rate [%d]\n", codec->sample_rate);
+    printf("decode_audio_file - format [%d]\n", codec->sample_fmt);
+
     // prepare resampler
     struct SwrContext* swr = swr_alloc();
     av_opt_set_int(swr, "in_channel_count",  codec->channels, 0);
@@ -357,26 +349,16 @@ int AudioDecoder::decode_audio_file(const char* path, const int sample_rate, sho
     av_opt_set_int(swr, "in_sample_rate", codec->sample_rate, 0);
     av_opt_set_sample_fmt(swr, "in_sample_fmt",  codec->sample_fmt, 0);
 
-    printf("decode_audio_file - chnl_c [%d]\n", codec->channels);
-    printf("decode_audio_file - layout [%d]\n", codec->channel_layout);
-    printf("decode_audio_file - S_rate [%d]\n", codec->sample_rate);
-    printf("decode_audio_file - format [%d]\n", codec->sample_fmt);
-
-
-    av_opt_set_int(swr, "out_channel_count", 1, 0);
-    av_opt_set_int(swr, "out_channel_layout", AV_CH_LAYOUT_MONO, 0);
-    av_opt_set_int(swr, "out_sample_rate", sample_rate, 0);
+    av_opt_set_int(swr, "out_channel_count", codec->channels, 0);
+    av_opt_set_int(swr, "out_channel_layout", codec->channel_layout, 0);
+    av_opt_set_int(swr, "out_sample_rate", codec->sample_rate, 0);
     av_opt_set_sample_fmt(swr, "out_sample_fmt", AV_SAMPLE_FMT_S16,  0);
+
     swr_init(swr);
     if (!swr_is_initialized(swr)) {
         fprintf(stderr, "Resampler has not been properly initialized\n");
         return -1;
     }
-
-    printf("resampled dest:: - chnl_c [1]\n");
-    printf("resampled dest:: - layout [AV_CH_LAYOUT_MONO]\n");
-    printf("resampled dest:: - S_rate [%d]\n", sample_rate);
-    printf("resampled dest:: - format [AV_SAMPLE_FMT_S16]\n");
 
     // prepare to read data
     AVPacket packet;
@@ -414,17 +396,17 @@ int AudioDecoder::decode_audio_file(const char* path, const int sample_rate, sho
         for(int i = 0; i < frame->nb_samples; i++){
             for(int channel = 0; channel < codec->channels; channel++){
                 fwrite(frame->data[channel] + sample_size * i, 1, sample_size, outfile1);
+
             }
         }
 
         // resample frames
-        double* buffer;
-        av_samples_alloc((uint8_t**) &buffer, NULL, 1, frame->nb_samples, AV_SAMPLE_FMT_S16, 0);
-
+        uint16_t* buffer;
+        av_samples_alloc((uint8_t**) &buffer, NULL, codec->channels, frame->nb_samples, AV_SAMPLE_FMT_S16, 0);
         int frame_count = swr_convert(swr, (uint8_t**) &buffer, frame->nb_samples, (const uint8_t**) frame->data, frame->nb_samples);
         // append resampled frames to data
-        *data = (short*) realloc(*data, (*size + frame->nb_samples) * sizeof(short));
-        memcpy(*data + *size, buffer, frame_count * sizeof(short));
+        *data = (uint16_t*) realloc(*data, (*size + frame->nb_samples) * sizeof(uint16_t));
+        memcpy(*data + *size, buffer, frame_count * sizeof(uint16_t));
         *size += frame_count;
 
     }
